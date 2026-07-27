@@ -36,7 +36,7 @@ func main() {
 		log.Fatal("BOT_TOKEN environment variable is missing!")
 	}
 
-	// Telegram Upload Time Out Error Solved: 3 Minutes Timeout Client
+	// 3 Minutes Timeout for large video uploads
 	client := &http.Client{
 		Timeout: 3 * time.Minute,
 	}
@@ -95,9 +95,9 @@ func main() {
 					return nil
 				}
 
+				// Send Video Without Caption
 				video := &tele.Video{
-					File:    tele.FromDisk(tempFileName),
-					Caption: "✨ Downloaded via Insta Downloader",
+					File: tele.FromDisk(tempFileName),
 				}
 
 				_, sendErr := b.Send(c.Recipient(), video)
@@ -148,9 +148,9 @@ func main() {
 					return nil
 				}
 
+				// Send Video Without Caption
 				video := &tele.Video{
-					File:    tele.FromDisk(tempFileName),
-					Caption: fmt.Sprintf("🎬 **%s**\n\n✨ Downloaded via YT Bot", ytData.Result.Title),
+					File: tele.FromDisk(tempFileName),
 				}
 
 				_, sendErr := b.Send(c.Recipient(), video)
