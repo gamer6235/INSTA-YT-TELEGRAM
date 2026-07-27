@@ -53,10 +53,7 @@ func main() {
 		return
 	}
 
-	b.Handle("/start", func(c tele.Context) error {
-		return c.Send("👋 Welcome! Instagram reel athava YouTube link ayachu tharoo.\nNjan direct video aayi ayachu tharam! 🚀")
-	})
-
+	// Message Listener (Links ayakkumbol mathram reply cheyyum)
 	b.Handle(tele.OnText, func(c tele.Context) error {
 		text := c.Text()
 
@@ -167,7 +164,8 @@ func main() {
 			return nil
 		}
 
-		return c.Send("Please Instagram athava YouTube link maathram ayakkoo!")
+		// Link allatha mattu text mesajukalkk bot silent aayi irikkum (Response aayakkilla)
+		return nil
 	})
 
 	port := os.Getenv("PORT")
