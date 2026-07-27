@@ -1,8 +1,0 @@
-github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/pmezard/go-difflib v1.0.0/go.mod h1:iA3dU2K6h85o89I+F4s/NipI2/636/E19yJz1rCgCjs=
-github.com/stretchr/objx v0.5.0/go.mod h1:YvHI0P23NMfFJmfBfSCWO0xZZndSi28Q38vKh151vhE=
-github.com/stretchr/testify v1.8.2/go.mod h1:w2LPCLnTyO5io6Ahy545KCcr5VIde65MKy25LnydUlw=
-gopkg.in/check.v1 v0.0.0-20161208181325-20d2bf829153/go.mod h1:Co6ibVJAznC5jgJF222i3C8LenQ68TFB0588mGNQItU=
-gopkg.in/telebot.v3 v3.2.1 h1:q4Y0P/0tM133sVaq4f3O0P6R49I41s0O04mK8/55Mzg=
-gopkg.in/telebot.v3 v3.2.1/go.mod h1:A5n9PqfM7Gf1J8l03lI3P3vBv3T4q2g0R02Q4w0jG0g=
-gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyhtRhZuwxYAiy1Y5M88HQmCib8C1YfA+sD/6kRBU=
