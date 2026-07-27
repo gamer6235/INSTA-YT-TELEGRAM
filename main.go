@@ -32,7 +32,7 @@ type YTResponse struct {
 }
 
 func main() {
-	// 1. Fetch Bot Token from Environment Variable
+	// 1. Fetch Telegram Bot Token from Environment Variable
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
 		log.Fatal("BOT_TOKEN environment variable is missing!")
@@ -49,16 +49,18 @@ func main() {
 		return
 	}
 
-	// 2. Start Command Handler
+	// /start Command
 	b.Handle("/start", func(c tele.Context) error {
 		return c.Send("👋 Welcome! Instagram reel athava YouTube link ayachu tharoo.\nNjan direct video aayi ayachu tharam! 🚀")
 	})
 
-	// 3. Main Text Message Handler
+	// Text Message Listener
 	b.Handle(tele.OnText, func(c tele.Context) error {
 		text := c.Text()
 
-		// --- INSTAGRAM LINK HANDLER ---
+		// ---------------------------------------------------------
+		// 1. INSTAGRAM HANDLER
+		// ---------------------------------------------------------
 		if strings.Contains(text, "instagram.com") {
 			msg, _ := b.Send(c.Recipient(), "🔄 Instagram video process cheyyunnu...")
 
@@ -78,20 +80,47 @@ func main() {
 			if instaData.Status && len(instaData.Result) > 0 {
 				videoURL := instaData.Result[0].URL
 
-				// Send Direct Video Stream to Telegram (0 Disk & RAM usage)
+				// Unique Temp File Name
+				tempFileName := fmt.Sprintf("insta_%d.mp4", time.Now().UnixNano())
+
+				// AUTO CLEANUP: Send cheythalum crash aayalum file storage-il ninnu delete aavum
+				defer func() {
+					if _, err := os.Stat(tempFileName); err == nil {
+						os.Remove(tempFileName)
+						log.Println("Insta Temp file deleted:", tempFileName)
+					}
+				}()
+
+				// Download file temporarily
+				err := downloadFile(tempFileName, videoURL)
+				if err != nil {
+					b.Edit(msg, "❌ Insta video file download cheyyan pattiyilla.")
+					return nil
+				}
+
+				// Send Video to Telegram
 				video := &tele.Video{
-					File:    tele.FromURL(videoURL),
+					File:    tele.FromDisk(tempFileName),
 					Caption: "✨ Downloaded via Insta Downloader",
 				}
-				b.Send(c.Recipient(), video)
-				b.Delete(msg)
+
+				_, sendErr := b.Send(c.Recipient(), video)
+				if sendErr != nil {
+					log.Println("Send Error:", sendErr)
+					b.Edit(msg, "❌ Video Telegram-ilekk send cheyyan kazhinjilla.")
+				} else {
+					b.Delete(msg)
+				}
+
 			} else {
 				b.Edit(msg, "❌ Insta Video link fetch cheyyaan pattiyilla.")
 			}
 			return nil
 		}
 
-		// --- YOUTUBE LINK HANDLER ---
+		// ---------------------------------------------------------
+		// 2. YOUTUBE HANDLER (480p)
+		// ---------------------------------------------------------
 		if strings.Contains(text, "youtube.com") || strings.Contains(text, "youtu.be") {
 			msg, _ := b.Send(c.Recipient(), "⏳ YouTube Video download cheyyunnu (480p format)...")
 
@@ -109,31 +138,36 @@ func main() {
 			json.NewDecoder(resp.Body).Decode(&ytData)
 
 			if ytData.Status && ytData.Result.URL != "" {
-				// Create unique local temp file name
-				tempFileName := fmt.Sprintf("temp_%d.mp4", time.Now().UnixNano())
+				tempFileName := fmt.Sprintf("yt_%d.mp4", time.Now().UnixNano())
 
-				// AUTO CLEANUP: Video send aayalum error vannaalum local file auto-delete aakum
+				// AUTO CLEANUP
 				defer func() {
 					if _, err := os.Stat(tempFileName); err == nil {
 						os.Remove(tempFileName)
-						log.Println("Temp file auto-deleted successfully:", tempFileName)
+						log.Println("YT Temp file deleted:", tempFileName)
 					}
 				}()
 
-				// Download file to server disk temporarily
+				// Download file temporarily
 				err := downloadFile(tempFileName, ytData.Result.URL)
 				if err != nil {
 					b.Edit(msg, "❌ File server-ilekk download cheyyan pattiyilla.")
 					return nil
 				}
 
-				// Send Video File to Telegram
+				// Send Video to Telegram
 				video := &tele.Video{
 					File:    tele.FromDisk(tempFileName),
 					Caption: fmt.Sprintf("🎬 **%s**\n\n✨ Downloaded via YT Bot", ytData.Result.Title),
 				}
-				b.Send(c.Recipient(), video)
-				b.Delete(msg)
+
+				_, sendErr := b.Send(c.Recipient(), video)
+				if sendErr != nil {
+					log.Println("Send Error:", sendErr)
+					b.Edit(msg, "❌ Video Telegram-ilekk send cheyyan kazhinjilla.")
+				} else {
+					b.Delete(msg)
+				}
 
 			} else {
 				b.Edit(msg, "❌ YouTube video fetch cheyyaan kazhinjilla.")
@@ -144,36 +178,36 @@ func main() {
 		return c.Send("Please Instagram athava YouTube link maathram ayakkoo!")
 	})
 
-	// 4. Dummy Web Server for Render Port Check
+	// Dummy HTTP Server to satisfy Render Web Service Port Check
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // Default port
+		port = "8080"
 	}
 
 	go func() {
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, "Bot is running live!")
+			fmt.Fprintf(w, "Bot is live and running!")
 		})
-		log.Printf("Dummy HTTP Server listening on port %s for Render...", port)
+		log.Printf("Dummy HTTP Server listening on port %s...", port)
 		if err := http.ListenAndServe(":"+port, nil); err != nil {
 			log.Printf("HTTP Server Error: %v", err)
 		}
 	}()
 
-	// 5. Start Telegram Bot Polling
 	log.Println("Go Telegram Bot is running...")
 	b.Start()
 }
 
-// Helper Function: Stream down video file to local temp path
+// Helper Function: Stream file down safely with user-agent
 func downloadFile(filepath string, url string) error {
-	out, err := os.Create(filepath)
+	client := &http.Client{Timeout: 60 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 
-	resp, err := http.Get(url)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -182,6 +216,12 @@ func downloadFile(filepath string, url string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status: %s", resp.Status)
 	}
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	return err
