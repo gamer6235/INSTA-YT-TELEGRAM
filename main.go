@@ -14,7 +14,6 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
-// API Response Structures
 type InstaResponse struct {
 	Status bool `json:"status"`
 	Result []struct {
@@ -32,15 +31,20 @@ type YTResponse struct {
 }
 
 func main() {
-	// 1. Fetch Telegram Bot Token from Environment Variable
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
 		log.Fatal("BOT_TOKEN environment variable is missing!")
 	}
 
+	// Telegram Upload Time Out Error Solved: 3 Minutes Timeout Client
+	client := &http.Client{
+		Timeout: 3 * time.Minute,
+	}
+
 	pref := tele.Settings{
 		Token:  botToken,
 		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
+		Client: client,
 	}
 
 	b, err := tele.NewBot(pref)
@@ -49,18 +53,14 @@ func main() {
 		return
 	}
 
-	// /start Command
 	b.Handle("/start", func(c tele.Context) error {
 		return c.Send("👋 Welcome! Instagram reel athava YouTube link ayachu tharoo.\nNjan direct video aayi ayachu tharam! 🚀")
 	})
 
-	// Text Message Listener
 	b.Handle(tele.OnText, func(c tele.Context) error {
 		text := c.Text()
 
-		// ---------------------------------------------------------
-		// 1. INSTAGRAM HANDLER
-		// ---------------------------------------------------------
+		// --- INSTAGRAM LINK HANDLER ---
 		if strings.Contains(text, "instagram.com") {
 			msg, _ := b.Send(c.Recipient(), "🔄 Instagram video process cheyyunnu...")
 
@@ -79,11 +79,9 @@ func main() {
 
 			if instaData.Status && len(instaData.Result) > 0 {
 				videoURL := instaData.Result[0].URL
-
-				// Unique Temp File Name
 				tempFileName := fmt.Sprintf("insta_%d.mp4", time.Now().UnixNano())
 
-				// AUTO CLEANUP: Send cheythalum crash aayalum file storage-il ninnu delete aavum
+				// AUTO CLEANUP
 				defer func() {
 					if _, err := os.Stat(tempFileName); err == nil {
 						os.Remove(tempFileName)
@@ -91,14 +89,12 @@ func main() {
 					}
 				}()
 
-				// Download file temporarily
 				err := downloadFile(tempFileName, videoURL)
 				if err != nil {
 					b.Edit(msg, "❌ Insta video file download cheyyan pattiyilla.")
 					return nil
 				}
 
-				// Send Video to Telegram
 				video := &tele.Video{
 					File:    tele.FromDisk(tempFileName),
 					Caption: "✨ Downloaded via Insta Downloader",
@@ -118,9 +114,7 @@ func main() {
 			return nil
 		}
 
-		// ---------------------------------------------------------
-		// 2. YOUTUBE HANDLER (480p)
-		// ---------------------------------------------------------
+		// --- YOUTUBE LINK HANDLER ---
 		if strings.Contains(text, "youtube.com") || strings.Contains(text, "youtu.be") {
 			msg, _ := b.Send(c.Recipient(), "⏳ YouTube Video download cheyyunnu (480p format)...")
 
@@ -148,14 +142,12 @@ func main() {
 					}
 				}()
 
-				// Download file temporarily
 				err := downloadFile(tempFileName, ytData.Result.URL)
 				if err != nil {
 					b.Edit(msg, "❌ File server-ilekk download cheyyan pattiyilla.")
 					return nil
 				}
 
-				// Send Video to Telegram
 				video := &tele.Video{
 					File:    tele.FromDisk(tempFileName),
 					Caption: fmt.Sprintf("🎬 **%s**\n\n✨ Downloaded via YT Bot", ytData.Result.Title),
@@ -178,7 +170,6 @@ func main() {
 		return c.Send("Please Instagram athava YouTube link maathram ayakkoo!")
 	})
 
-	// Dummy HTTP Server to satisfy Render Web Service Port Check
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -198,9 +189,8 @@ func main() {
 	b.Start()
 }
 
-// Helper Function: Stream file down safely with user-agent
 func downloadFile(filepath string, url string) error {
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: 2 * time.Minute}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
